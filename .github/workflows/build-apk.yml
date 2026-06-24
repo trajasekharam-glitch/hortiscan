@@ -64,12 +64,13 @@ jobs:
           MAN=app/src/main/AndroidManifest.xml
           sed -i 's#<application#<uses-permission android:name="android.permission.CAMERA"/>\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>\n    <uses-feature android:name="android.hardware.camera" android:required="false"/>\n    <application#' "$MAN"
 
-      - name: Build debug APK
+       - name: Build debug APK
         working-directory: app-src/android
+        env:
+          GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4g
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
-
+          ./gradlew assembleDebug --no-daemon --stacktrace
       - name: Upload APK (Actions artifact)
         uses: actions/upload-artifact@v4
         with:
