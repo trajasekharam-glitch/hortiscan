@@ -1,13 +1,14 @@
 name: Build HortiScan APK
 
-# Runs automatically when you push, and can also be started by hand
 on:
   workflow_dispatch:
   push:
-    branches: [ main, master ]
+    branches:
+      - main
+      - master
 
 permissions:
-  contents: write   # needed to publish the APK to Releases
+  contents: write
 
 jobs:
   build:
@@ -17,32 +18,28 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Unzip the app project
-        run: |
-          unzip -o hortiscan-android.zip -d app-src
-          ls -la app-src
+        run: unzip -o hortiscan-android.zip -d app-src
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: "22"
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: "17"
 
       - name: Install dependencies
         working-directory: app-src
         run: npm install
 
-      - name: Generate full third-party licence file (MIT attribution)
+      - name: Generate third-party licence file
         working-directory: app-src
         run: |
           mkdir -p public
-          npx --yes generate-license-file --input package.json --output public/THIRD-PARTY-LICENSES.txt --overwrite \
-            || npx --yes license-checker-rseidelsohn --production --plainVertical --out public/THIRD-PARTY-LICENSES.txt \
-            || echo "Using bundled baseline THIRD-PARTY-LICENSES.txt"
+          npx --yes generate-license-file --input package.json --output public/THIRD-PARTY-LICENSES.txt --overwrite || echo "Using bundled baseline licences"
 
       - name: Build web assets
         working-directory: app-src
@@ -58,26 +55,27 @@ jobs:
         working-directory: app-src/android
         run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
 
-      - name: Add camera & location permissions
+      - name: Add camera and location permissions
         working-directory: app-src/android
         run: |
-          MAN=app/src/main/AndroidManifest.xml
-          sed -i 's#<application#<uses-permission android:name="android.permission.CAMERA"/>\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>\n    <uses-feature android:name="android.hardware.camera" android:required="false"/>\n    <application#' "$MAN"
+          MANIFEST=app/src/main/AndroidManifest.xml
+          sed -i 's#<application#<uses-permission android:name="android.permission.CAMERA"/>\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>\n    <uses-feature android:name="android.hardware.camera" android:required="false"/>\n    <application#' "$MANIFEST"
 
-       - name: Build debug APK
+      - name: Build debug APK
         working-directory: app-src/android
         env:
-          GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4g
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g"
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon --stacktrace
-      - name: Upload APK (Actions artifact)
+
+      - name: Upload APK as artifact
         uses: actions/upload-artifact@v4
         with:
           name: HortiScan-debug-apk
           path: app-src/android/app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Publish APK to Releases (easy phone download)
+      - name: Publish APK to Releases
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
