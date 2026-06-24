@@ -17,8 +17,30 @@ jobs:
       - name: Check out repo
         uses: actions/checkout@v4
 
-      - name: Unzip the app project
-        run: unzip -o hortiscan-android.zip -d app-src
+      - name: Find and unzip the app project
+        run: |
+          set -e
+          ZIP=$(find . -maxdepth 2 -name '*.zip' | head -n1)
+          if [ -z "$ZIP" ]; then
+            echo "ERROR: No .zip file found in the repository."
+            echo "Upload hortiscan-android.zip to the repo, then re-run."
+            ls -la
+            exit 1
+          fi
+          echo "Found project zip: $ZIP"
+          unzip -o "$ZIP" -d app-src
+          if [ ! -f app-src/package.json ]; then
+            INNER=$(find app-src -maxdepth 3 -name package.json | head -n1)
+            if [ -n "$INNER" ]; then
+              DIR=$(dirname "$INNER")
+              echo "Flattening project from: $DIR"
+              shopt -s dotglob
+              mv "$DIR"/* app-src/ 2>/dev/null || true
+            fi
+          fi
+          echo "--- app-src contents ---"
+          ls -la app-src
+          test -f app-src/package.json || { echo "ERROR: package.json not found after unzip."; exit 1; }
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
